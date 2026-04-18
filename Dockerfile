@@ -26,3 +26,6 @@ RUN for dir in /comfyui/custom_nodes/*/; do \
 
 WORKDIR /comfyui
 ENV RUNPOD_SERVERLESS=1
+
+ENV COMFYUI_OUTPUT_GATHERING=1
+ENV COMFYUI_OUTPUT_PATH=/runpod-volume/output
