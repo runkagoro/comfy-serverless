@@ -27,5 +27,16 @@ RUN for dir in /comfyui/custom_nodes/*/; do \
 WORKDIR /comfyui
 ENV RUNPOD_SERVERLESS=1
 
-ENV COMFYUI_OUTPUT_GATHERING=1
+# Указываем ComfyUI, куда сохранять файлы на твоем сетевом диске
 ENV COMFYUI_OUTPUT_PATH=/runpod-volume/ComfyUI/output
+
+# === НАШ ПЕРЕХВАТ УПРАВЛЕНИЯ ===
+# Копируем наши скрипты из GitHub прямо в контейнер
+COPY custom_handler.py /comfyui/custom_handler.py
+COPY start.sh /comfyui/start.sh
+
+# Разрешаем запуск стартового скрипта
+RUN chmod +x /comfyui/start.sh
+
+# Указываем RunPod запускать наш скрипт вместо стандартного
+CMD ["/comfyui/start.sh"]
