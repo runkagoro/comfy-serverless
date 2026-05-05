@@ -2,7 +2,7 @@ FROM runpod/worker-comfyui:latest-base
 
 USER root
 
-# Устанавливаем системные зависимости
+# 1. Устанавливаем системные зависимости
 RUN apt-get update && apt-get install -y \
     git \
     wget \
@@ -12,12 +12,16 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# ДОБАВКА: Библиотека GGUF для работы загрузчика моделей
+# 2. Библиотека GGUF для работы загрузчика моделей (обязательно!)
 RUN pip install --no-cache-dir --upgrade gguf
 
-# Установка нод
+# 3. Настраиваем рабочую директорию и копируем файлы
+WORKDIR /comfyui
+# ВАЖНО: Эта команда переносит твой worker_main.py из GitHub внутрь контейнера
+COPY . .
+
+# 4. Установка кастомных нод
 WORKDIR /comfyui/custom_nodes
-# В список клонирования добавлена нода city96/ComfyUI-GGUF
 RUN rm -rf ComfyUI-Manager ComfyUI-Image-Saver ComfyUI-KJNodes RES4LYF rgthree-comfy ComfyUI-GGUF && \
     git clone https://github.com/ltdrdata/ComfyUI-Manager.git && \
     git clone https://github.com/alexopus/ComfyUI-Image-Saver.git && \
@@ -26,26 +30,26 @@ RUN rm -rf ComfyUI-Manager ComfyUI-Image-Saver ComfyUI-KJNodes RES4LYF rgthree-c
     git clone https://github.com/rgthree/rgthree-comfy.git && \
     git clone https://github.com/city96/ComfyUI-GGUF.git
 
-# Установка зависимостей нод
+# 5. Установка зависимостей для всех склонированных нод
 RUN for dir in /comfyui/custom_nodes/*/; do \
       if [ -f "$dir/requirements.txt" ]; then \
         pip install --no-cache-dir -r "$dir/requirements.txt"; \
       fi; \
     done
 
-# Создаем папки для моделей и папку для сохранения результатов (output)
-# Мы добавили /comfyui/output сюда, так как Volume отключен
+# 6. Создаем папки для моделей и внутреннюю папку для сохранения картинок
 RUN mkdir -p /comfyui/models/unet /comfyui/models/text_encoders /comfyui/models/vae /comfyui/output
 
-# 1. Скачиваем основную модель GGUF Q5_K (15.1 ГБ)
+# 7. Скачиваем модели (используем кэширование RunPod)
+# Основная модель GGUF Q5_K (15.1 ГБ)
 RUN wget -L -O /comfyui/models/unet/Qwen-v19-Q5.gguf \
     "https://huggingface.co/Novice25/Qwen-Image-Edit-Rapid-AIO-GGUF/resolve/main/v19/Qwen-Rapid-AIO-NSFW-v19_Q5_K.gguf?download=true"
 
-# 2. Скачиваем Текстовый Энкодер (CLIP)
+# Текстовый Энкодер (CLIP)
 RUN wget -L -O /comfyui/models/text_encoders/qwen_2.5_vl_7b_fp8_scaled.safetensors \
     "https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI/resolve/main/split_files/text_encoders/qwen_2.5_vl_7b_fp8_scaled.safetensors"
 
-# 3. Скачиваем VAE
+# VAE
 RUN wget -L -O /comfyui/models/vae/qwen_image_vae.safetensors \
     "https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI/resolve/main/split_files/vae/qwen_image_vae.safetensors"
 
@@ -53,8 +57,8 @@ RUN wget -L -O /comfyui/models/vae/qwen_image_vae.safetensors \
 WORKDIR /comfyui
 ENV RUNPOD_SERVERLESS=1
 
-# ИСПРАВЛЕНО: Указываем внутреннюю папку вместо сетевого диска
+# Используем внутреннюю папку контейнера (т.к. Network Volume отключен)
 ENV COMFYUI_OUTPUT_PATH=/comfyui/output
 
-# Команда запуска воркера
+# Команда запуска файла-обработчика
 CMD ["python", "-u", "worker_main.py"]
