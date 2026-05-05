@@ -15,12 +15,7 @@ RUN apt-get update && apt-get install -y \
 # 2. Библиотека GGUF для работы загрузчика моделей (обязательно!)
 RUN pip install --no-cache-dir --upgrade gguf
 
-# 3. Настраиваем рабочую директорию и копируем файлы
-WORKDIR /comfyui
-# ВАЖНО: Эта команда переносит твой worker_main.py из GitHub внутрь контейнера
-COPY . .
-
-# 4. Установка кастомных нод
+# 3. Установка кастомных нод
 WORKDIR /comfyui/custom_nodes
 RUN rm -rf ComfyUI-Manager ComfyUI-Image-Saver ComfyUI-KJNodes RES4LYF rgthree-comfy ComfyUI-GGUF && \
     git clone https://github.com/ltdrdata/ComfyUI-Manager.git && \
@@ -30,17 +25,17 @@ RUN rm -rf ComfyUI-Manager ComfyUI-Image-Saver ComfyUI-KJNodes RES4LYF rgthree-c
     git clone https://github.com/rgthree/rgthree-comfy.git && \
     git clone https://github.com/city96/ComfyUI-GGUF.git
 
-# 5. Установка зависимостей для всех склонированных нод
+# 4. Установка зависимостей для всех склонированных нод
 RUN for dir in /comfyui/custom_nodes/*/; do \
       if [ -f "$dir/requirements.txt" ]; then \
         pip install --no-cache-dir -r "$dir/requirements.txt"; \
       fi; \
     done
 
-# 6. Создаем папки для моделей и внутреннюю папку для сохранения картинок
+# 5. Создаем папки для моделей и внутреннюю папку для сохранения картинок
 RUN mkdir -p /comfyui/models/unet /comfyui/models/text_encoders /comfyui/models/vae /comfyui/output
 
-# 7. Скачиваем модели (используем кэширование RunPod)
+# 6. Скачиваем модели (используем кэширование RunPod)
 # Основная модель GGUF Q5_K (15.1 ГБ)
 RUN wget -L -O /comfyui/models/unet/Qwen-v19-Q5.gguf \
     "https://huggingface.co/Novice25/Qwen-Image-Edit-Rapid-AIO-GGUF/resolve/main/v19/Qwen-Rapid-AIO-NSFW-v19_Q5_K.gguf?download=true"
@@ -53,12 +48,16 @@ RUN wget -L -O /comfyui/models/text_encoders/qwen_2.5_vl_7b_fp8_scaled.safetenso
 RUN wget -L -O /comfyui/models/vae/qwen_image_vae.safetensors \
     "https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI/resolve/main/split_files/vae/qwen_image_vae.safetensors"
 
-# --- НАСТРОЙКИ ЗАПУСКА ---
+# --- НАСТРОЙКИ ЗАПУСКА И КОПИРОВАНИЕ ФАЙЛОВ ---
 WORKDIR /comfyui
 ENV RUNPOD_SERVERLESS=1
 
 # Используем внутреннюю папку контейнера (т.к. Network Volume отключен)
 ENV COMFYUI_OUTPUT_PATH=/comfyui/output
+
+# 7. ВАЖНО: Копируем файлы из GitHub в САМОМ КОНЦЕ
+# Теперь изменения в коде не заставят перекачивать 25 ГБ моделей!
+COPY . .
 
 # Команда запуска файла-обработчика
 CMD ["python", "-u", "worker_main.py"]
