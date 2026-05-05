@@ -12,14 +12,19 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
+# --- ДОБАВКА №1: Библиотека GGUF (из твоей инструкции) ---
+RUN pip install --no-cache-dir --upgrade gguf
+
 # Установка нод
 WORKDIR /comfyui/custom_nodes
-RUN rm -rf ComfyUI-Manager ComfyUI-Image-Saver ComfyUI-KJNodes RES4LYF rgthree-comfy && \
+# --- ДОБАВКА №2: В список клонирования добавлена нода city96 ---
+RUN rm -rf ComfyUI-Manager ComfyUI-Image-Saver ComfyUI-KJNodes RES4LYF rgthree-comfy ComfyUI-GGUF && \
     git clone https://github.com/ltdrdata/ComfyUI-Manager.git && \
     git clone https://github.com/alexopus/ComfyUI-Image-Saver.git && \
     git clone https://github.com/kijai/ComfyUI-KJNodes.git && \
     git clone https://github.com/ClownsharkBatwing/RES4LYF.git && \
-    git clone https://github.com/rgthree/rgthree-comfy.git
+    git clone https://github.com/rgthree/rgthree-comfy.git && \
+    git clone https://github.com/city96/ComfyUI-GGUF.git
 
 # Установка зависимостей нод
 RUN for dir in /comfyui/custom_nodes/*/; do \
