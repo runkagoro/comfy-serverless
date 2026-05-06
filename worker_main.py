@@ -56,12 +56,26 @@ def handler(job):
             break
         time.sleep(0.5)
 
+    # ИСПРАВЛЕНО: Умный поиск самого свежего ФАЙЛА (игнорируя папки)
     out_path = os.environ.get("COMFYUI_OUTPUT_PATH", "/comfyui/output")
-    files = os.listdir(out_path)
-    if not files: 
+    
+    latest_file = None
+    latest_time = 0
+    
+    for root, dirs, files in os.walk(out_path):
+        for file in files:
+            # Игнорируем скрытые системные файлы
+            if file.startswith('.'):
+                continue
+            file_path = os.path.join(root, file)
+            file_time = os.path.getctime(file_path)
+            if file_time > latest_time:
+                latest_time = file_time
+                latest_file = file_path
+
+    if not latest_file: 
         return {"error": "Картинка не создана"}
     
-    latest_file = max([os.path.join(out_path, f) for f in files], key=os.path.getctime)
     with open(latest_file, "rb") as f:
         return {"image": base64.b64encode(f.read()).decode('utf-8')}
 
